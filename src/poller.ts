@@ -88,4 +88,40 @@ export class Poller {
         await connection.release();
         console.log(moment().format('HH:mm:ss') + ': Finished Saving Tags');
     }
+
+    async updateUsers()
+    {
+        let connection = await this.db.getConnection();
+
+        console.log(moment().format('HH:mm:ss') + ': Started Selecting Users');
+        await connection.beginTransaction();
+        let userIds = await connection.query(`SELECT id FROM User`);
+
+        let currentUsers = [];
+        for(let i = 0; i < userIds.length; i += 1 ){
+            if(i%100 == 0){
+                currentUsers.push([]);
+            }
+
+            currentUsers[Math.floor(i/100)].push(userIds[i].id);
+        }
+
+        console.log(moment().format('HH:mm:ss') + ': Finished Selecting Users');
+
+        console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
+        for(let j = 0; j < currentUsers.length; j++){
+            let e = currentUsers[j];
+
+            let users = await this.apiClient.helix.users.getUsersByIds(e);
+            for (const u of users) {
+                await connection.query(`UPDATE User SET type = "${u.type}", broadcaster_type = "${u.broadcasterType}" WHERE id = ${u.id}`);
+            }
+
+        }
+        await connection.commit();
+
+        await connection.release();
+
+        console.log(moment().format('HH:mm:ss') + ': Finished Updating Users');
+    }
 }

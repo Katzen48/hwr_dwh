@@ -4,5 +4,6 @@ require('dotenv').config();
 
 const poller = new Poller();
 
-poller.saveStreams();
-poller.saveTags();
+//poller.saveStreams();
+//poller.saveTags();
+poller.updateUsers();

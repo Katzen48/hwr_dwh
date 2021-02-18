@@ -156,6 +156,65 @@ var Poller = /** @class */ (function () {
             });
         });
     };
+    Poller.prototype.updateUsers = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var connection, userIds, currentUsers, i, j, e, users, _i, users_1, u;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.db.getConnection()];
+                    case 1:
+                        connection = _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Started Selecting Users');
+                        return [4 /*yield*/, connection.beginTransaction()];
+                    case 2:
+                        _a.sent();
+                        return [4 /*yield*/, connection.query("SELECT id FROM User")];
+                    case 3:
+                        userIds = _a.sent();
+                        currentUsers = [];
+                        for (i = 0; i < userIds.length; i += 1) {
+                            if (i % 100 == 0) {
+                                currentUsers.push([]);
+                            }
+                            currentUsers[Math.floor(i / 100)].push(userIds[i].id);
+                        }
+                        console.log(moment().format('HH:mm:ss') + ': Finished Selecting Users');
+                        console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
+                        j = 0;
+                        _a.label = 4;
+                    case 4:
+                        if (!(j < currentUsers.length)) return [3 /*break*/, 10];
+                        e = currentUsers[j];
+                        return [4 /*yield*/, this.apiClient.helix.users.getUsersByIds(e)];
+                    case 5:
+                        users = _a.sent();
+                        _i = 0, users_1 = users;
+                        _a.label = 6;
+                    case 6:
+                        if (!(_i < users_1.length)) return [3 /*break*/, 9];
+                        u = users_1[_i];
+                        return [4 /*yield*/, connection.query("UPDATE User SET type = \"" + u.type + "\", broadcaster_type = \"" + u.broadcasterType + "\" WHERE id = " + u.id)];
+                    case 7:
+                        _a.sent();
+                        _a.label = 8;
+                    case 8:
+                        _i++;
+                        return [3 /*break*/, 6];
+                    case 9:
+                        j++;
+                        return [3 /*break*/, 4];
+                    case 10: return [4 /*yield*/, connection.commit()];
+                    case 11:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 12:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Finished Updating Users');
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
     return Poller;
 }());
 exports.Poller = Poller;
