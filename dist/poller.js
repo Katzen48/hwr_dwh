@@ -49,84 +49,11 @@ var Poller = /** @class */ (function () {
     }
     Poller.prototype.saveStreams = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var paginatedStreams, currentPage, page, _loop_1, this_1;
-            var _this = this;
+            var paginatedStreams, streamsComplete, connection, users, streams, games, streamStats, streamTags;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        console.log(moment().format('HH:mm:ss') + ': Started polling');
-                        return [4 /*yield*/, this.apiClient.helix.streams.getStreamsPaginated()];
-                    case 1:
-                        paginatedStreams = _a.sent();
-                        currentPage = null;
-                        _loop_1 = function () {
-                            var self_1 = this_1;
-                            currentPage = (function () { return __awaiter(_this, void 0, void 0, function () {
-                                var users, streams, games, streamStats, connection;
-                                return __generator(this, function (_a) {
-                                    switch (_a.label) {
-                                        case 0:
-                                            users = [];
-                                            streams = [];
-                                            games = [];
-                                            streamStats = [];
-                                            page.forEach(function (stream) {
-                                                users.push([stream.userId, stream.userDisplayName]);
-                                                streams.push([stream.id, stream.userId, stream.startDate]);
-                                                games.push([stream.gameId]);
-                                                streamStats.push([stream.gameId, stream.id, stream.viewers, stream.language]);
-                                            });
-                                            return [4 /*yield*/, self_1.db.getConnection()];
-                                        case 1:
-                                            connection = _a.sent();
-                                            return [4 /*yield*/, connection.beginTransaction()];
-                                        case 2:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.batch("INSERT IGNORE INTO User (id, display_name) VALUES (?, ?)", users)];
-                                        case 3:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.batch("INSERT INTO Stream (id, user_id, started_at, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE ended_at=CURRENT_TIMESTAMP()", streams)];
-                                        case 4:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Game (id) VALUES (?)", games)];
-                                        case 5:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.batch("INSERT INTO Stream_Stats (game_id, stream_id, viewer_count, language) VALUES (?, ?, ?, ?)", streamStats)];
-                                        case 6:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.commit()];
-                                        case 7:
-                                            _a.sent();
-                                            return [4 /*yield*/, connection.release()];
-                                        case 8:
-                                            _a.sent();
-                                            return [2 /*return*/];
-                                    }
-                                });
-                            }); })();
-                        };
-                        this_1 = this;
-                        _a.label = 2;
-                    case 2: return [4 /*yield*/, paginatedStreams.getNext()];
-                    case 3:
-                        if (!(page = _a.sent()).length) return [3 /*break*/, 4];
-                        _loop_1();
-                        return [3 /*break*/, 2];
-                    case 4: return [4 /*yield*/, currentPage];
-                    case 5:
-                        _a.sent();
-                        return [2 /*return*/];
-                }
-            });
-        });
-    };
-    Poller.prototype.saveStreamsComplete = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var paginatedStreams, streamsComplete, connection, users, streams, games, streamStats;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        console.log(moment().format('HH:mm:ss') + ': Started polling');
+                        console.log(moment().format('HH:mm:ss') + ': Started polling Streams');
                         return [4 /*yield*/, this.apiClient.helix.streams.getStreamsPaginated()];
                     case 1:
                         paginatedStreams = _a.sent();
@@ -140,7 +67,8 @@ var Poller = /** @class */ (function () {
                         streams = [];
                         games = [];
                         streamStats = [];
-                        console.log(moment().format('HH:mm:ss') + ': Finished Polling');
+                        streamTags = [];
+                        console.log(moment().format('HH:mm:ss') + ': Finished Polling Streams');
                         streamsComplete.forEach(function (stream) {
                             users.push([stream.userId, stream.userDisplayName]);
                             streams.push([stream.id, stream.userId, stream.startDate]);
@@ -148,8 +76,13 @@ var Poller = /** @class */ (function () {
                                 games.push([stream.gameId]);
                             }
                             streamStats.push([(stream.gameId == '' ? null : stream.gameId), stream.id, stream.viewers, stream.language]);
+                            stream.tagIds.forEach(function (tagId) {
+                                if (tagId) {
+                                    streamTags.push([stream.id, tagId]);
+                                }
+                            });
                         });
-                        console.log(moment().format('HH:mm:ss') + ': Saving');
+                        console.log(moment().format('HH:mm:ss') + ': Saving Streams');
                         return [4 /*yield*/, connection.beginTransaction()];
                     case 4:
                         _a.sent();
@@ -165,13 +98,59 @@ var Poller = /** @class */ (function () {
                         return [4 /*yield*/, connection.batch("INSERT INTO Stream_Stats (game_id, stream_id, viewer_count, language) VALUES (?, ?, ?, ?)", streamStats)];
                     case 8:
                         _a.sent();
-                        return [4 /*yield*/, connection.commit()];
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Stream_Tag (stream_id, tag_id) VALUES (?, ?)", streamTags)];
                     case 9:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 10:
                         _a.sent();
-                        console.log(moment().format('HH:mm:ss') + ': Finished Saving');
+                        return [4 /*yield*/, connection.release()];
+                    case 11:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Finished Saving Streams');
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Poller.prototype.saveTags = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var paginatedTags, tagsComplete, connection, tags;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log(moment().format('HH:mm:ss') + ': Started polling Tags');
+                        return [4 /*yield*/, this.apiClient.helix.tags.getAllStreamTagsPaginated()];
+                    case 1:
+                        paginatedTags = _a.sent();
+                        return [4 /*yield*/, paginatedTags.getAll()];
+                    case 2:
+                        tagsComplete = _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Finished Polling Tags');
+                        return [4 /*yield*/, this.db.getConnection()];
+                    case 3:
+                        connection = _a.sent();
+                        tags = [];
+                        tagsComplete.forEach(function (tag) {
+                            if (tag.id && tag.getName('de-de')) {
+                                tags.push([tag.id, tag.getName('de-de')]);
+                            }
+                        });
+                        //console.log(">>>" + JSON.stringify(tagsComplete[160]));
+                        console.log(moment().format('HH:mm:ss') + ': Started Saving Tags');
+                        return [4 /*yield*/, connection.beginTransaction()];
+                    case 4:
+                        _a.sent();
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Tag (id, name) VALUES (?, ?)", tags)];
+                    case 5:
+                        _a.sent();
+                        return [4 /*yield*/, connection.commit()];
+                    case 6:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 7:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Finished Saving Tags');
                         return [2 /*return*/];
                 }
             });
