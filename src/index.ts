@@ -4,6 +4,4 @@ require('dotenv').config();
 
 const poller = new Poller();
 
-(async function () {
-    await poller.saveStreams();
-})();
+poller.saveStreams();
