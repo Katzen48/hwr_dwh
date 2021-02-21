@@ -139,7 +139,6 @@ var Poller = /** @class */ (function () {
                                 tags.push([tag.id, tag.getName('de-de')]);
                             }
                         });
-                        //console.log(">>>" + JSON.stringify(tagsComplete[160]));
                         console.log(moment().format('HH:mm:ss') + ': Started Saving Tags');
                         return [4 /*yield*/, connection.beginTransaction()];
                     case 4:
@@ -228,7 +227,7 @@ var Poller = /** @class */ (function () {
     };
     Poller.prototype.updateGames = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var connection, gameIds, currentGames, i, appAccessToken, igdb, sqlIds, sqlNameCases, sqlSteamIdCases, sqlFirstReleaseDateCases, sqlRatingCases, i, gameIdBatch, gameIdFilter, response, sqlNameCase, sqlSteamIdCase, sqlFirstReleaseDateCase, sqlRatingCase, sqlIdClause, sqlStatement;
+            var connection, gameIds, currentGames, i, appAccessToken, igdb, sqlIds, sqlNameCases, sqlSteamIdCases, sqlFirstReleaseDateCases, sqlRatingCases, genres, gameGenres, i, gameIdBatch, gameIdFilter, response, sqlNameCase, sqlSteamIdCase, sqlFirstReleaseDateCase, sqlRatingCase, sqlIdClause, sqlStatement;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.db.getConnection()];
@@ -258,6 +257,8 @@ var Poller = /** @class */ (function () {
                         sqlSteamIdCases = [];
                         sqlFirstReleaseDateCases = [];
                         sqlRatingCases = [];
+                        genres = [];
+                        gameGenres = [];
                         console.log(moment().format('HH:mm:ss') + ': Starting Updating Games');
                         i = 0;
                         _a.label = 5;
@@ -266,7 +267,7 @@ var Poller = /** @class */ (function () {
                         gameIdBatch = currentGames[i];
                         gameIdFilter = gameIdBatch.join(',');
                         return [4 /*yield*/, igdb
-                                .fields(['uid', 'game.name', 'game.first_release_date', 'game.rating', 'game.external_games.category', 'game.external_games.uid'])
+                                .fields(['uid', 'game.name', 'game.first_release_date', 'game.rating', 'game.external_games.category', 'game.external_games.uid', 'game.genres.*'])
                                 .limit(500)
                                 .where("category = 14 & uid = (" + gameIdFilter + ") & game.first_release_date != null & game.rating != null")
                                 .request('/external_games')];
@@ -279,6 +280,15 @@ var Poller = /** @class */ (function () {
                             var steamId = steamGame ? steamGame.uid : null;
                             var firstReleaseDate = game.game.first_release_date ? "'" + moment(new Date(game.game.first_release_date * 1000)).format('YYYY-MM-DD HH:mm:ss') + "'" : 'NULL';
                             var rating = game.game.rating ? game.game.rating : 0.00;
+                            if (game.game.genres) {
+                                for (var j = 0; j < game.game.genres.length; j++) {
+                                    var genre = game.game.genres[j];
+                                    var genreId = genre.id;
+                                    var genreName = genre.name;
+                                    genres.push([genreId, genreName]);
+                                    gameGenres.push([id, genreId]);
+                                }
+                            }
                             sqlIds.push(id);
                             sqlNameCases.push("WHEN '" + id + "' THEN '" + name + "'");
                             sqlSteamIdCases.push("WHEN '" + id + "' THEN " + (steamId ? "'" + steamId + "'" : 'NULL'));
@@ -296,16 +306,22 @@ var Poller = /** @class */ (function () {
                         sqlRatingCase = sqlRatingCases.join(' ');
                         sqlIdClause = sqlIds.join(',');
                         console.log(moment().format('HH:mm:ss') + ': Built SQL Cases');
+                        return [4 /*yield*/, connection.batch('INSERT IGNORE INTO Genre (id, name) VALUES (?, ?)', genres)];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, connection.batch('INSERT IGNORE INTO Game_Genre (game_id, genre_id) VALUES (?, ?)', gameGenres)];
+                    case 10:
+                        _a.sent();
                         sqlStatement = "UPDATE Game SET name = CASE id " + sqlNameCase + " ELSE name END, steam_id = CASE id " + sqlSteamIdCase + " ELSE steam_id END, first_release_date = CASE id " + sqlFirstReleaseDateCase + " ELSE first_release_date END, " +
                             ("rating = CASE id " + sqlRatingCase + " ELSE rating END WHERE id IN (" + sqlIdClause + ")");
                         return [4 /*yield*/, connection.query(sqlStatement)];
-                    case 9:
+                    case 11:
                         _a.sent();
                         return [4 /*yield*/, connection.commit()];
-                    case 10:
+                    case 12:
                         _a.sent();
                         return [4 /*yield*/, connection.release()];
-                    case 11:
+                    case 13:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Updating Games');
                         return [2 /*return*/];

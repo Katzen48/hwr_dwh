@@ -82,7 +82,6 @@ export class Poller {
             }
         });
 
-        //console.log(">>>" + JSON.stringify(tagsComplete[160]));
         console.log(moment().format('HH:mm:ss') + ': Started Saving Tags');
         await connection.beginTransaction();
         await connection.batch(`INSERT IGNORE INTO Tag (id, name) VALUES (?, ?)`, tags);
@@ -181,13 +180,16 @@ export class Poller {
         let sqlFirstReleaseDateCases = [];
         let sqlRatingCases = [];
 
+        let genres = [];
+        let gameGenres = [];
+
         console.log(moment().format('HH:mm:ss') + ': Starting Updating Games');
         for(let i = 0 ; i < currentGames.length ; i++) {
             let gameIdBatch = currentGames[i];
             let gameIdFilter = gameIdBatch.join(',');
 
             let response = await igdb
-                .fields(['uid', 'game.name' ,'game.first_release_date', 'game.rating', 'game.external_games.category', 'game.external_games.uid'])
+                .fields(['uid', 'game.name' ,'game.first_release_date', 'game.rating', 'game.external_games.category', 'game.external_games.uid', 'game.genres.*'])
                 .limit(500)
                 .where(`category = 14 & uid = (${gameIdFilter}) & game.first_release_date != null & game.rating != null`)
                 .request('/external_games');
@@ -200,6 +202,18 @@ export class Poller {
                 let steamId = steamGame ? steamGame.uid : null;
                 let firstReleaseDate = game.game.first_release_date ? "'" + moment(new Date(game.game.first_release_date * 1000)).format('YYYY-MM-DD HH:mm:ss') + "'" : 'NULL';
                 let rating = game.game.rating ? game.game.rating : 0.00;
+
+                if(game.game.genres) {
+                    for(let j = 0 ; j < game.game.genres.length ; j++) {
+                        let genre = game.game.genres[j];
+
+                        let genreId = genre.id;
+                        let genreName = genre.name;
+
+                        genres.push([genreId, genreName]);
+                        gameGenres.push([id, genreId]);
+                    }
+                }
 
                 sqlIds.push(id);
                 sqlNameCases.push(`WHEN '${id}' THEN '${name}'`);
@@ -216,6 +230,9 @@ export class Poller {
         let sqlIdClause = sqlIds.join(',');
 
         console.log(moment().format('HH:mm:ss') + ': Built SQL Cases');
+
+        await connection.batch('INSERT IGNORE INTO Genre (id, name) VALUES (?, ?)', genres);
+        await connection.batch('INSERT IGNORE INTO Game_Genre (game_id, genre_id) VALUES (?, ?)', gameGenres);
 
         let sqlStatement = `UPDATE Game SET name = CASE id ${sqlNameCase} ELSE name END, steam_id = CASE id ${sqlSteamIdCase} ELSE steam_id END, first_release_date = CASE id ${sqlFirstReleaseDateCase} ELSE first_release_date END, ` +
             `rating = CASE id ${sqlRatingCase} ELSE rating END WHERE id IN (${sqlIdClause})`;
