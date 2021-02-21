@@ -1,4 +1,4 @@
-import {ApiClient, HelixStream, HelixTag} from "twitch";
+import {ApiClient, HelixStream, HelixTag, HelixUser} from "twitch";
 import { ClientCredentialsAuthProvider } from 'twitch-auth';
 
 import * as Client from 'mariadb';
@@ -95,7 +95,7 @@ export class Poller {
 
         console.log(moment().format('HH:mm:ss') + ': Started Selecting Users');
         await connection.beginTransaction();
-        let userIds = await connection.query(`SELECT id FROM User`);
+        let userIds = await connection.query(`SELECT id FROM User WHERE type IS NULL`);
 
         let currentUsers = [];
         for(let i = 0; i < userIds.length; i += 1 ){
@@ -108,18 +108,43 @@ export class Poller {
 
         console.log(moment().format('HH:mm:ss') + ': Finished Selecting Users');
 
+        let userPromises = [];
+        let users: HelixUser[] = [];
+
+        await this.apiClient.getTokenInfo();
+
         console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
         for(let j = 0; j < currentUsers.length; j++){
             let e = currentUsers[j];
 
-            let users = await this.apiClient.helix.users.getUsersByIds(e);
-            for (const u of users) {
-                await connection.query(`UPDATE User SET type = "${u.type}", broadcaster_type = "${u.broadcasterType}" WHERE id = ${u.id}`);
-            }
-
+            userPromises.push(this.apiClient.helix.users.getUsersByIds(e).then(result => Array.prototype.push.apply(users, result)));
         }
-        await connection.commit();
 
+        await Promise.all(userPromises);
+
+        let sqlTypeCases = [];
+        let sqlBroadcasterTypeCases = [];
+        let sqlIds = [];
+
+        users.forEach(user => {
+            let id = user.id;
+            let type = user.type;
+            let broadcasterType = user.broadcasterType;
+
+            sqlTypeCases.push(`WHEN '${id}' THEN '${type}'`);
+            sqlBroadcasterTypeCases.push(`WHEN '${id}' THEN '${broadcasterType}'`);
+            sqlIds.push(id);
+        });
+
+        let sqlTypeCase = sqlTypeCases.join(' ');
+        let sqlBroadcasterTypeCase = sqlBroadcasterTypeCases.join(' ');
+        let sqlIdClause = sqlIds.join(',');
+
+        console.log(moment().format('HH:mm:ss') + ': Build SQL Cases');
+
+        let sqlStatement = `UPDATE User SET type = CASE id ${sqlTypeCase} ELSE type END, broadcaster_type = CASE id ${sqlBroadcasterTypeCase} ELSE broadcaster_type END WHERE id IN (${sqlIdClause})`;
+        await connection.query(sqlStatement);
+        await connection.commit();
         await connection.release();
 
         console.log(moment().format('HH:mm:ss') + ': Finished Updating Users');

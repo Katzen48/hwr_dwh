@@ -158,7 +158,7 @@ var Poller = /** @class */ (function () {
     };
     Poller.prototype.updateUsers = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var connection, userIds, currentUsers, i, j, e, users, _i, users_1, u;
+            var connection, userIds, currentUsers, i, userPromises, users, j, e, sqlTypeCases, sqlBroadcasterTypeCases, sqlIds, sqlTypeCase, sqlBroadcasterTypeCase, sqlIdClause, sqlStatement;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, this.db.getConnection()];
@@ -168,7 +168,7 @@ var Poller = /** @class */ (function () {
                         return [4 /*yield*/, connection.beginTransaction()];
                     case 2:
                         _a.sent();
-                        return [4 /*yield*/, connection.query("SELECT id FROM User")];
+                        return [4 /*yield*/, connection.query("SELECT id FROM User WHERE type IS NULL")];
                     case 3:
                         userIds = _a.sent();
                         currentUsers = [];
@@ -179,35 +179,43 @@ var Poller = /** @class */ (function () {
                             currentUsers[Math.floor(i / 100)].push(userIds[i].id);
                         }
                         console.log(moment().format('HH:mm:ss') + ': Finished Selecting Users');
-                        console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
-                        j = 0;
-                        _a.label = 4;
+                        userPromises = [];
+                        users = [];
+                        return [4 /*yield*/, this.apiClient.getTokenInfo()];
                     case 4:
-                        if (!(j < currentUsers.length)) return [3 /*break*/, 10];
-                        e = currentUsers[j];
-                        return [4 /*yield*/, this.apiClient.helix.users.getUsersByIds(e)];
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
+                        for (j = 0; j < currentUsers.length; j++) {
+                            e = currentUsers[j];
+                            userPromises.push(this.apiClient.helix.users.getUsersByIds(e).then(function (result) { return Array.prototype.push.apply(users, result); }));
+                        }
+                        return [4 /*yield*/, Promise.all(userPromises)];
                     case 5:
-                        users = _a.sent();
-                        _i = 0, users_1 = users;
-                        _a.label = 6;
+                        _a.sent();
+                        sqlTypeCases = [];
+                        sqlBroadcasterTypeCases = [];
+                        sqlIds = [];
+                        users.forEach(function (user) {
+                            var id = user.id;
+                            var type = user.type;
+                            var broadcasterType = user.broadcasterType;
+                            sqlTypeCases.push("WHEN '" + id + "' THEN '" + type + "'");
+                            sqlBroadcasterTypeCases.push("WHEN '" + id + "' THEN '" + broadcasterType + "'");
+                            sqlIds.push(id);
+                        });
+                        sqlTypeCase = sqlTypeCases.join(' ');
+                        sqlBroadcasterTypeCase = sqlBroadcasterTypeCases.join(' ');
+                        sqlIdClause = sqlIds.join(',');
+                        console.log(moment().format('HH:mm:ss') + ': Build SQL Cases');
+                        sqlStatement = "UPDATE User SET type = CASE id " + sqlTypeCase + " ELSE type END, broadcaster_type = CASE id " + sqlBroadcasterTypeCase + " ELSE broadcaster_type END WHERE id IN (" + sqlIdClause + ")";
+                        return [4 /*yield*/, connection.query(sqlStatement)];
                     case 6:
-                        if (!(_i < users_1.length)) return [3 /*break*/, 9];
-                        u = users_1[_i];
-                        return [4 /*yield*/, connection.query("UPDATE User SET type = \"" + u.type + "\", broadcaster_type = \"" + u.broadcasterType + "\" WHERE id = " + u.id)];
+                        _a.sent();
+                        return [4 /*yield*/, connection.commit()];
                     case 7:
                         _a.sent();
-                        _a.label = 8;
-                    case 8:
-                        _i++;
-                        return [3 /*break*/, 6];
-                    case 9:
-                        j++;
-                        return [3 /*break*/, 4];
-                    case 10: return [4 /*yield*/, connection.commit()];
-                    case 11:
-                        _a.sent();
                         return [4 /*yield*/, connection.release()];
-                    case 12:
+                    case 8:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Updating Users');
                         return [2 /*return*/];
