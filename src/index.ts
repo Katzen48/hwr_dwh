@@ -8,8 +8,13 @@ const poller = new Poller();
 let tagsPromise = poller.saveTags();
 
 poller.saveStreams().then(async () => {
-    await poller.updateUsers();
-    await tagsPromise;
+    let usersPromise = poller.updateUsers();
+    let gamesPromise = (async function () {
+        await poller.updateGames();
+        await poller.updateGamesPlayerCount();
+    })();
+
+    await Promise.all([tagsPromise, usersPromise, gamesPromise]);
 
     process.exit(0);
 });

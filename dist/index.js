@@ -41,13 +41,28 @@ require('dotenv').config();
 var poller = new poller_1.Poller();
 var tagsPromise = poller.saveTags();
 poller.saveStreams().then(function () { return __awaiter(void 0, void 0, void 0, function () {
+    var usersPromise, gamesPromise;
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, poller.updateUsers()];
+            case 0:
+                usersPromise = poller.updateUsers();
+                gamesPromise = (function () {
+                    return __awaiter(this, void 0, void 0, function () {
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0: return [4 /*yield*/, poller.updateGames()];
+                                case 1:
+                                    _a.sent();
+                                    return [4 /*yield*/, poller.updateGamesPlayerCount()];
+                                case 2:
+                                    _a.sent();
+                                    return [2 /*return*/];
+                            }
+                        });
+                    });
+                })();
+                return [4 /*yield*/, Promise.all([tagsPromise, usersPromise, gamesPromise])];
             case 1:
-                _a.sent();
-                return [4 /*yield*/, tagsPromise];
-            case 2:
                 _a.sent();
                 process.exit(0);
                 return [2 /*return*/];
