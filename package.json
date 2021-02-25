@@ -13,7 +13,9 @@
     "typescript": "^4.1.5"
   },
   "dependencies": {
+    "axios-rate-limit": "github:bifot/axios-rate-limit",
     "dotenv": "^8.2.0",
+    "igdb-api-node": "^5.0.0",
     "mariadb": "^2.5.3",
     "moment": "^2.29.1",
     "twitch": "^4.4.11"
