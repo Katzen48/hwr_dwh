@@ -48,8 +48,13 @@ var Transformer = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.transformGames()];
+                    case 0:
+                        this.transformGames();
+                        return [4 /*yield*/, this.transformStreams()];
                     case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this.transformFacts()];
+                    case 2:
                         _a.sent();
                         return [2 /*return*/];
                 }
@@ -109,6 +114,137 @@ var Transformer = /** @class */ (function () {
                         // 4. fertig
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + " Transform Games finished");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Transformer.prototype.transformStreams = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var originalConnection, targetConnection, originalStreams, targetStreamIds, targetStreams, s, sqlIds;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log(moment().format('HH:mm:ss') + " Starting transform Streams!");
+                        return [4 /*yield*/, this.originalDb.getConnection()];
+                    case 1:
+                        originalConnection = _a.sent();
+                        return [4 /*yield*/, this.targetDb.getConnection()];
+                    case 2:
+                        targetConnection = _a.sent();
+                        return [4 /*yield*/, originalConnection.beginTransaction()];
+                    case 3:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM streams_transformed")];
+                    case 4:
+                        originalStreams = _a.sent();
+                        targetStreamIds = [];
+                        targetStreams = [];
+                        while ((s = originalStreams.shift())) {
+                            targetStreamIds.push('\'' + s.id + '\'');
+                            targetStreams.push([
+                                s.id,
+                                s.user_id,
+                                s.started_at,
+                                s.ended_at,
+                                s.tag,
+                                s.user_name,
+                                s.user_type,
+                                s.user_broadcaster_type
+                            ]);
+                        }
+                        sqlIds = targetStreamIds.join(',');
+                        return [4 /*yield*/, originalConnection.query("UPDATE Stream SET transformed_at = CURRENT_TIMESTAMP() WHERE id IN (" + sqlIds + ")")];
+                    case 5:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.beginTransaction()];
+                    case 6:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.batch('INSERT INTO Stream (id, user_id, started_at, ended_at, tag, user_name, user_type, user_broadcaster_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ended_at = VALUES(ended_at)', targetStreams)];
+                    case 7:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.commit()];
+                    case 8:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.release()];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.commit()];
+                    case 10:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.release()];
+                    case 11:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + " Transform Streams finished");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Transformer.prototype.transformFacts = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var originalConnection, targetConnection, result, maxDate, targetStats, originalCurrentPlayers, p, originalStreamStats, s;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log(moment().format('HH:mm:ss') + " Starting transform Facts!");
+                        return [4 /*yield*/, this.originalDb.getConnection()];
+                    case 1:
+                        originalConnection = _a.sent();
+                        return [4 /*yield*/, this.targetDb.getConnection()];
+                    case 2:
+                        targetConnection = _a.sent();
+                        return [4 /*yield*/, targetConnection.beginTransaction()];
+                    case 3:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.query('SELECT MAX(created_at) as max_date FROM Facts')];
+                    case 4:
+                        result = _a.sent();
+                        maxDate = result[0].max_date;
+                        if (maxDate) {
+                            maxDate = '\'' + maxDate + '\'';
+                        }
+                        targetStats = [];
+                        return [4 /*yield*/, originalConnection.beginTransaction()];
+                    case 5:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Current_Players WHERE created_at > " + maxDate)];
+                    case 6:
+                        originalCurrentPlayers = _a.sent();
+                        while ((p = originalCurrentPlayers.shift())) {
+                            targetStats.push([
+                                0,
+                                p.count,
+                                p.game_id,
+                                null,
+                                p.created_at
+                            ]);
+                        }
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Stream_Stats WHERE created_at > " + maxDate)];
+                    case 7:
+                        originalStreamStats = _a.sent();
+                        while ((s = originalStreamStats.shift())) {
+                            targetStats.push([
+                                s.viewer_count,
+                                0,
+                                s.game_id,
+                                s.stream_id,
+                                s.created_at
+                            ]);
+                        }
+                        return [4 /*yield*/, originalConnection.release()];
+                    case 8:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.batch('INSERT INTO Facts (viewer_count, players_count, game_id, stream_id, created_at) VALUES (?, ?, ?, ?, ?)', targetStats)];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.commit()];
+                    case 10:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.release()];
+                    case 11:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + " Transform Facts finished");
                         return [2 /*return*/];
                 }
             });
