@@ -11,7 +11,11 @@ export class Transformer {
     }
 
     async transform() {
-        await this.transformGames();
+        await Promise.all([
+            this.transformGames(),
+            this.transformStreams()
+        ]);
+
     }
 
     async transformGames() {
@@ -51,5 +55,45 @@ export class Transformer {
         await targetConnection.release();
 
         console.log(moment().format('HH:mm:ss') + " Transform Games finished");
+    }
+
+    async transformStreams() {
+        console.log(moment().format('HH:mm:ss') + " Starting transform Streams!");
+
+
+        let originalConnection = await this.originalDb.getConnection();
+        let targetConnection = await this.targetDb.getConnection();
+
+
+        await originalConnection.beginTransaction();
+
+        let originalStreams = await originalConnection.query(`SELECT * FROM streams_transformed`);
+
+        let targetStreams = [];
+
+        originalStreams.forEach(s => {
+            targetStreams.push([
+                s.id,
+                s.user_id,
+                s.started_at,
+                s.ended_at,
+                s.tag,
+                s.user_name,
+                s.user_type,
+                s.user_broadcaster_type
+            ]);
+        });
+
+        await targetConnection.beginTransaction();
+        await targetConnection.batch('INSERT INTO Stream (id, user_id, started_at, ended_at, tag, user_name, user_type, user_broadcaster_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', targetStreams);
+
+        await targetConnection.commit();
+
+        await targetConnection.release();
+
+        await originalConnection.release();
+
+        console.log(moment().format('HH:mm:ss') + " Transform Streams finished");
+
     }
 }
