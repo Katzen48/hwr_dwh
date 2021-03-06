@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const fs = require('fs');
-const { ApolloServer, gql } = require('apollo-server');
+const { ApolloServer, gql, AuthenticationError } = require('apollo-server');
 const responseCachePlugin = require('apollo-server-plugin-response-cache');
 const graphqlFields = require('graphql-fields');
 const SqlDatabase = require('./sqlDatabase');
@@ -102,6 +102,13 @@ const server = new ApolloServer({
         calculateHttpHeaders: false,
     },
     plugins: [responseCachePlugin()],
+    context: ({req}) => {
+        const token = req.headers.authorization || '';
+
+        if(!token.toLowerCase().startsWith('bearer ') || token.substr(7) !== process.env.AUTH_TOKEN) {
+            throw new AuthenticationError('No valid Token provided');
+        }
+    }
 });
 
 server.listen().then(({ url }) => {
