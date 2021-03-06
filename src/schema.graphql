@@ -1,0 +1,88 @@
+type Game {
+    id: ID!
+    name: String
+    steam_id: String
+    first_release_date: String
+    rating: Float
+    genre_name: String
+    facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts]
+}
+
+type Stream {
+    id: ID!
+    user_id: String!
+    started_at: String
+    ended_at: String
+    tag: String
+    user_name: String!
+    user_type: String
+    user_broadcaster_type: String
+    facts(first: Int, page: Int): [Facts]
+}
+
+type Facts {
+    viewer_count: Int
+    players_count: Int
+    game_id: ID
+    stream_id: ID
+    created_at: String
+    game: [Game]
+    stream: [Stream]
+}
+
+type Query {
+    games(first: Int, page: Int, orderBy: GameOrderByInput, filter: GameFilterInput): [Game]
+    game(id: ID!): [Game]
+    streams(first: Int, page: Int, orderBy: StreamOrderByInput, filter: StreamFilterInput): [Stream]
+    stream(id: ID!, filter: StreamFilterInput!): [Stream]
+    facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts]
+}
+
+input GameOrderByInput {
+    id: Sort
+    name: Sort
+    steam_id: Sort
+    first_release_date: Sort
+    rating: Sort
+    genre_name: Sort
+}
+
+input GameFilterInput {
+    name: String
+    steam_id: String
+    first_release_date: String
+    rating: String
+    genre_name: String
+}
+
+input StreamFilterInput {
+    user_id: String
+    started_at: String
+    ended_at: String
+    tag: String
+    user_name: String
+    user_type: String
+    user_broadcaster_type: String
+}
+
+input StreamOrderByInput {
+    id: Sort
+    user_id: Sort
+    started_at: Sort
+    ended_at: Sort
+    tag: Sort
+    user_name: Sort
+    user_type: Sort
+    user_broadcaster_type: Sort
+}
+
+input FactsOrderByInput {
+    game_id: Sort
+    stream_id: Sort
+    created_at: Sort
+}
+
+enum Sort {
+    asc
+    desc
+}
