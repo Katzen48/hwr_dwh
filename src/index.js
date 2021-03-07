@@ -108,7 +108,8 @@ const server = new ApolloServer({
         if(!token.toLowerCase().startsWith('bearer ') || token.substr(7) !== process.env.AUTH_TOKEN) {
             throw new AuthenticationError('No valid Token provided');
         }
-    }
+    },
+    introspection: true
 });
 
 server.listen().then(({ url }) => {
