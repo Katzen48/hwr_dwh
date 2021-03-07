@@ -46,10 +46,19 @@ var Transformer = /** @class */ (function () {
     }
     Transformer.prototype.transform = function () {
         return __awaiter(this, void 0, void 0, function () {
+            var gamesPromise;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.transformGames()];
+                    case 0:
+                        gamesPromise = this.transformGames();
+                        return [4 /*yield*/, this.transformStreams()];
                     case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this.transformFacts()];
+                    case 2:
+                        _a.sent();
+                        return [4 /*yield*/, gamesPromise];
+                    case 3:
                         _a.sent();
                         return [2 /*return*/];
                 }
@@ -109,6 +118,224 @@ var Transformer = /** @class */ (function () {
                         // 4. fertig
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + " Transform Games finished");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Transformer.prototype.transformStreams = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var originalConnection, targetConnection, synchronized, originalStreams, targetStreamIds, targetStreams, s, sqlIds;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log(moment().format('HH:mm:ss') + " Starting transform Streams!");
+                        return [4 /*yield*/, this.originalDb.getConnection()];
+                    case 1:
+                        originalConnection = _a.sent();
+                        return [4 /*yield*/, this.targetDb.getConnection()];
+                    case 2:
+                        targetConnection = _a.sent();
+                        return [4 /*yield*/, originalConnection.beginTransaction()];
+                    case 3:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.beginTransaction()];
+                    case 4:
+                        _a.sent();
+                        synchronized = 0;
+                        _a.label = 5;
+                    case 5: return [4 /*yield*/, originalConnection.query("SELECT * FROM streams_transformed LIMIT 100000")];
+                    case 6:
+                        originalStreams = _a.sent();
+                        synchronized = originalStreams.length;
+                        console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " Streams");
+                        targetStreamIds = [];
+                        targetStreams = [];
+                        s = void 0;
+                        while ((s = originalStreams.shift())) {
+                            targetStreamIds.push('\'' + s.id + '\'');
+                            targetStreams.push([
+                                s.id,
+                                s.user_id,
+                                s.started_at ? s.started_at : null,
+                                s.ended_at ? s.ended_at : null,
+                                s.tag ? s.tag : null,
+                                s.user_name,
+                                s.user_type,
+                                s.user_broadcaster_type
+                            ]);
+                        }
+                        if (!(synchronized > 1)) return [3 /*break*/, 11];
+                        sqlIds = targetStreamIds.join(',');
+                        return [4 /*yield*/, originalConnection.query("UPDATE Stream SET transformed_at = CURRENT_TIMESTAMP() WHERE id IN (" + sqlIds + ")")];
+                    case 7:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.batch('INSERT INTO Stream (id, user_id, started_at, ended_at, tag, user_name, user_type, user_broadcaster_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ended_at = VALUES(ended_at)', targetStreams)];
+                    case 8:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.commit()];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.commit()];
+                    case 10:
+                        _a.sent();
+                        _a.label = 11;
+                    case 11:
+                        if (synchronized > 0) return [3 /*break*/, 5];
+                        _a.label = 12;
+                    case 12: return [4 /*yield*/, targetConnection.release()];
+                    case 13:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.release()];
+                    case 14:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + " Transform Streams finished");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Transformer.prototype.transformFacts = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var originalConnection, targetConnection, result, maxDate, targetStats, originalCurrentPlayers, originalStreamStats, synchronized, limit, startIndex, targetStats, originalCurrentPlayers, originalStreamStats;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log(moment().format('HH:mm:ss') + " Starting transform Facts!");
+                        return [4 /*yield*/, this.originalDb.getConnection()];
+                    case 1:
+                        originalConnection = _a.sent();
+                        return [4 /*yield*/, this.targetDb.getConnection()];
+                    case 2:
+                        targetConnection = _a.sent();
+                        return [4 /*yield*/, targetConnection.beginTransaction()];
+                    case 3:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.query('SELECT MAX(created_at) as max_date FROM Facts')];
+                    case 4:
+                        result = _a.sent();
+                        maxDate = result[0].max_date;
+                        if (maxDate) {
+                            maxDate = '\'' + maxDate + '\'';
+                        }
+                        return [4 /*yield*/, originalConnection.beginTransaction()];
+                    case 5:
+                        _a.sent();
+                        if (!maxDate) return [3 /*break*/, 13];
+                        targetStats = [];
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Current_Players WHERE created_at > " + maxDate)];
+                    case 6:
+                        originalCurrentPlayers = _a.sent();
+                        return [4 /*yield*/, this.pushPlayerStats(originalCurrentPlayers, targetStats)];
+                    case 7:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Stream_Stats WHERE created_at > " + maxDate)];
+                    case 8:
+                        originalStreamStats = _a.sent();
+                        return [4 /*yield*/, this.pushStreamStats(originalStreamStats, targetStats)];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.release()];
+                    case 10:
+                        _a.sent();
+                        if (!(targetStats.length > 0)) return [3 /*break*/, 12];
+                        return [4 /*yield*/, this.saveFacts(targetConnection, targetStats)];
+                    case 11:
+                        _a.sent();
+                        _a.label = 12;
+                    case 12: return [3 /*break*/, 24];
+                    case 13:
+                        synchronized = 0;
+                        limit = 1000000;
+                        startIndex = 0;
+                        _a.label = 14;
+                    case 14:
+                        targetStats = [];
+                        console.log(moment().format('HH:mm:ss') + " Requesting stats startIndex=" + startIndex);
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Current_Players LIMIT " + startIndex + "," + limit)];
+                    case 15:
+                        originalCurrentPlayers = _a.sent();
+                        synchronized = originalCurrentPlayers.length;
+                        console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
+                        return [4 /*yield*/, this.pushPlayerStats(originalCurrentPlayers, targetStats)];
+                    case 16:
+                        _a.sent();
+                        return [4 /*yield*/, originalConnection.query("SELECT * FROM Stream_Stats WHERE NOT game_id is NULL LIMIT " + startIndex + "," + limit)];
+                    case 17:
+                        originalStreamStats = _a.sent();
+                        synchronized += originalStreamStats.length;
+                        console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
+                        return [4 /*yield*/, this.pushStreamStats(originalStreamStats, targetStats)];
+                    case 18:
+                        _a.sent();
+                        if (!(targetStats.length > 0)) return [3 /*break*/, 20];
+                        return [4 /*yield*/, this.saveFacts(targetConnection, targetStats)];
+                    case 19:
+                        _a.sent();
+                        _a.label = 20;
+                    case 20:
+                        startIndex += limit;
+                        _a.label = 21;
+                    case 21:
+                        if (synchronized > 0) return [3 /*break*/, 14];
+                        _a.label = 22;
+                    case 22: return [4 /*yield*/, originalConnection.release()];
+                    case 23:
+                        _a.sent();
+                        _a.label = 24;
+                    case 24: return [4 /*yield*/, targetConnection.release()];
+                    case 25:
+                        _a.sent();
+                        console.log(moment().format('HH:mm:ss') + " Transform Facts finished");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    Transformer.prototype.pushPlayerStats = function (originalCurrentPlayers, targetStats) {
+        return __awaiter(this, void 0, void 0, function () {
+            var p;
+            return __generator(this, function (_a) {
+                while ((p = originalCurrentPlayers.shift())) {
+                    targetStats.push([
+                        0,
+                        p.count ? p.count : 0,
+                        p.game_id,
+                        null,
+                        p.created_at
+                    ]);
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
+    Transformer.prototype.pushStreamStats = function (originalStreamStats, targetStats) {
+        return __awaiter(this, void 0, void 0, function () {
+            var s;
+            return __generator(this, function (_a) {
+                while ((s = originalStreamStats.shift())) {
+                    targetStats.push([
+                        s.viewer_count ? s.viewer_count : 0,
+                        0,
+                        s.game_id,
+                        s.stream_id,
+                        s.created_at
+                    ]);
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
+    Transformer.prototype.saveFacts = function (targetConnection, targetStats) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, targetConnection.batch('INSERT INTO Facts (viewer_count, players_count, game_id, stream_id, created_at) VALUES (?, ?, ?, ?, ?)', targetStats)];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, targetConnection.commit()];
+                    case 2:
+                        _a.sent();
                         return [2 /*return*/];
                 }
             });
