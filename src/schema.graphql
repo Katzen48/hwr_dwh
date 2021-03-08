@@ -2,17 +2,19 @@ type Game {
     id: ID!
     name: String
     steam_id: String
-    first_release_date: String
+    first_release_date: Date
     rating: Float
     genre_name: String
     facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts]
+    players(first: Int, fromDate: String!, toDate: String!): [PlayerCount]
+    viewers(first: Int, fromDate: String!, toDate: String!): [ViewerCount]
 }
 
 type Stream {
     id: ID!
     user_id: String!
-    started_at: String
-    ended_at: String
+    started_at: DateTime
+    ended_at: DateTime
     tag: String
     user_name: String!
     user_type: String
@@ -20,12 +22,26 @@ type Stream {
     facts(first: Int, page: Int): [Facts]
 }
 
+type PlayerCount {
+    players: Int!
+    game_id: ID!
+    created_at: DateTime
+    game: [Game]
+}
+
+type ViewerCount {
+    viewers: Int!
+    game_id: ID!
+    created_at: DateTime
+    game: [Game]
+}
+
 type Facts {
     viewer_count: Int
     players_count: Int
     game_id: ID
     stream_id: ID
-    created_at: String
+    created_at: DateTime
     game: [Game]
     stream: [Stream]
 }
@@ -36,6 +52,8 @@ type Query {
     streams(first: Int, page: Int, orderBy: StreamOrderByInput, filter: StreamFilterInput): [Stream]
     stream(id: ID!, filter: StreamFilterInput!): [Stream]
     facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts]
+    players(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: PlayerCountOrderByInput): [PlayerCount]
+    viewers(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: ViewerCountOrderByInput): [ViewerCount]
 }
 
 input GameOrderByInput {
@@ -50,15 +68,15 @@ input GameOrderByInput {
 input GameFilterInput {
     name: String
     steam_id: String
-    first_release_date: String
+    first_release_date: Date
     rating: String
     genre_name: String
 }
 
 input StreamFilterInput {
     user_id: String
-    started_at: String
-    ended_at: String
+    started_at: DateTime
+    ended_at: DateTime
     tag: String
     user_name: String
     user_type: String
@@ -82,7 +100,23 @@ input FactsOrderByInput {
     created_at: Sort
 }
 
+input PlayerCountOrderByInput {
+    players: Sort
+    game_id: Sort
+    created_at: Sort
+}
+
+input ViewerCountOrderByInput {
+    viewers: Sort
+    game_id: Sort
+    created_at: Sort
+}
+
 enum Sort {
     asc
     desc
 }
+
+scalar Date
+scalar DateTime
+scalar Time

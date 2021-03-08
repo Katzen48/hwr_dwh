@@ -16,6 +16,7 @@
     "dotenv": "^8.2.0",
     "graphql": "^15.5.0",
     "graphql-fields": "^2.0.3",
+    "graphql-iso-date": "^3.6.1",
     "mysql": "^2.18.1"
   }
 }
