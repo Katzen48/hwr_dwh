@@ -10,7 +10,7 @@ class SqlDatabase extends SQLDataSource {
 
         if(filter) {
             for (let key in filter) {
-                query = query.where(key, filter[key]);
+                query = query.where(key, 'like', filter[key]);
             }
         }
 
@@ -30,7 +30,7 @@ class SqlDatabase extends SQLDataSource {
 
         if(filter) {
             for (let key in filter) {
-                query = query.where(key, filter[key]);
+                query = query.where(key, 'like', filter[key]);
             }
         }
 
@@ -55,25 +55,11 @@ class SqlDatabase extends SQLDataSource {
 
         if(filter) {
             for (let key in filter) {
-                query = query.where(key, filter[key]);
+                query = query.where(key, 'like', filter[key]);
             }
         }
 
         return query;
-    }
-
-    getGames(fields) {
-        return this.knex
-            .distinct(fields)
-            .from("Game")
-            .limit(1000);
-    }
-
-    getStreams(fields) {
-        return this.knex
-            .distinct(fields)
-            .from("Stream")
-            .limit(1000);
     }
 }
 
