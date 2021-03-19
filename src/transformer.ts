@@ -16,6 +16,8 @@ export class Transformer {
         await this.transformStreams();
         await this.transformFacts();
         await gamesPromise;
+
+        process.exit(0);
     }
 
     async transformGames() {
@@ -25,10 +27,12 @@ export class Transformer {
         let originalConnection = await this.originalDb.getConnection();
         let targetConnection = await this.targetDb.getConnection();
 
+        await originalConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         // 1. Games aus Orginal Tabelle laden
         await originalConnection.beginTransaction();
 
         let originalGames = await originalConnection.query(`SELECT * FROM games_transformed`);
+        await originalConnection.commit();
 
         await originalConnection.release();
         // 2. Insert Statement blablabla, und ausführen
@@ -45,6 +49,7 @@ export class Transformer {
             ]);
         });
 
+        await targetConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await targetConnection.beginTransaction();
         await targetConnection.batch('INSERT IGNORE INTO Game (id, `name`, steam_id, first_release_date, rating, genre_name) VALUES (?, ?, ?, ?, ?, ?)', targetGames);
 
@@ -63,7 +68,9 @@ export class Transformer {
         let originalConnection = await this.originalDb.getConnection();
         let targetConnection = await this.targetDb.getConnection();
 
+        await originalConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await originalConnection.beginTransaction();
+        await targetConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await targetConnection.beginTransaction();
 
         let synchronized = 0;
@@ -115,30 +122,46 @@ export class Transformer {
         let originalConnection = await this.originalDb.getConnection();
         let targetConnection = await this.targetDb.getConnection();
 
+        await targetConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await targetConnection.beginTransaction();
         let result = await targetConnection.query('SELECT MAX(created_at) as max_date FROM Facts');
         let maxDate = result[0].max_date;
 
         if(maxDate) {
-            maxDate = '\'' + maxDate + '\''
+            maxDate = '\'' + maxDate.toISOString() + '\''
         }
 
+        await originalConnection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await originalConnection.beginTransaction()
 
         if (maxDate) {
-            let targetStats = [];
+            let synchronized = 0;
+            let limit = 1000000;
+            let startIndex = 0;
 
-            let originalCurrentPlayers = await originalConnection.query(`SELECT * FROM Current_Players WHERE created_at > ${maxDate}`);
-            await this.pushPlayerStats(originalCurrentPlayers, targetStats);
+            do {
+                let targetStats = [];
 
-            let originalStreamStats = await originalConnection.query(`SELECT * FROM Stream_Stats WHERE created_at > ${maxDate}`);
-            await this.pushStreamStats(originalStreamStats, targetStats);
+                console.log(moment().format('HH:mm:ss') + " Requesting stats created_at >" + maxDate + " LIMIT " + startIndex + "," + limit);
+
+                let originalCurrentPlayers = await originalConnection.query(`SELECT * FROM Current_Players WHERE created_at > ${maxDate} ORDER BY created_at ASC LIMIT ${startIndex},${limit}`);
+                synchronized = originalCurrentPlayers.length;
+                console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
+                await this.pushPlayerStats(originalCurrentPlayers, targetStats);
+
+                let originalStreamStats = await originalConnection.query(`SELECT * FROM Stream_Stats WHERE created_at > ${maxDate} ORDER BY created_at ASC LIMIT ${startIndex},${limit}`);
+                synchronized += originalStreamStats.length;
+                console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
+                await this.pushStreamStats(originalStreamStats, targetStats);
+
+                if (targetStats.length > 0) {
+                    await this.saveFacts(targetConnection, targetStats);
+                }
+
+                startIndex += limit;
+            } while (synchronized > 0);
 
             await originalConnection.release();
-
-            if(targetStats.length > 0) {
-                await this.saveFacts(targetConnection, targetStats);
-            }
         } else {
             let synchronized = 0;
             let limit = 1000000;
@@ -149,12 +172,12 @@ export class Transformer {
 
                 console.log(moment().format('HH:mm:ss') + " Requesting stats startIndex=" + startIndex);
 
-                let originalCurrentPlayers = await originalConnection.query(`SELECT * FROM Current_Players LIMIT ${startIndex},${limit}`);
+                let originalCurrentPlayers = await originalConnection.query(`SELECT * FROM Current_Players ORDER BY created_at ASC LIMIT ${startIndex},${limit}`);
                 synchronized = originalCurrentPlayers.length;
                 console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
                 await this.pushPlayerStats(originalCurrentPlayers, targetStats);
 
-                let originalStreamStats = await originalConnection.query(`SELECT * FROM Stream_Stats WHERE NOT game_id is NULL LIMIT ${startIndex},${limit}`);
+                let originalStreamStats = await originalConnection.query(`SELECT * FROM Stream_Stats WHERE NOT game_id is NULL ORDER BY created_at ASC LIMIT ${startIndex},${limit}`);
                 synchronized += originalStreamStats.length;
                 console.log(moment().format('HH:mm:ss') + " Got " + synchronized + " stats");
                 await this.pushStreamStats(originalStreamStats, targetStats);
@@ -177,12 +200,15 @@ export class Transformer {
     async pushPlayerStats(originalCurrentPlayers: any[], targetStats: any[]) {
         let p;
         while((p = originalCurrentPlayers.shift())) {
+            let analyticsDate = moment(p.created_at).seconds(0).milliseconds(0);
+            analyticsDate = analyticsDate.minutes(Math.floor(analyticsDate.minutes() / 30) * 30);
+
             targetStats.push([
                 0,
                 p.count ? p.count : 0,
                 p.game_id,
                 null,
-                p.created_at
+                analyticsDate.toDate(),
             ]);
         }
     }
@@ -190,12 +216,15 @@ export class Transformer {
     async pushStreamStats(originalStreamStats: any[], targetStats: any[]) {
         let s;
         while((s = originalStreamStats.shift())) {
+            let analyticsDate = moment(s.created_at).seconds(0).milliseconds(0);
+            analyticsDate = analyticsDate.minutes(Math.floor(analyticsDate.minutes() / 30) * 30);
+
             targetStats.push([
                 s.viewer_count ? s.viewer_count : 0,
                 0,
                 s.game_id,
                 s.stream_id,
-                s.created_at
+                analyticsDate.toDate(),
             ]);
         }
     }
