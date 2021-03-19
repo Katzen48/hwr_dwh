@@ -40,7 +40,7 @@ function resolveCountFromDb(dataSources, view, {first, fields, orderBy, fromDate
 }
 
 function resolveFirstFromDb(dataSources, entity, {id}, info) {
-    let fields = Object.keys(graphqlFields(info));
+    let fields = Object.keys(graphqlFields(info)).filter(value => value !== 'game' && value !== 'stream' && value !== 'facts' && value !== 'players' && value !== 'viewers');
 
     return dataSources.db.getFirst(entity, fields, {id: id});
 }
@@ -89,17 +89,17 @@ const resolvers = {
         },
     },
     Game: {
-        facts: (parent, {first = 10, orderBy = {}, page = 0}, {dataSources}, info) => {
+        facts: (parent, {first = 12, orderBy = {}, page = 0}, {dataSources}, info) => {
             let filter = {
                 game_id: parent.id,
             }
 
-            first = first <= 10 ? first : 10;
+            first = first <= 12 ? first : 12;
             orderBy.created_at = orderBy.created_at ? orderBy.created_at : 'desc';
 
             return resolveFromDb(dataSources, 'Facts', {first, orderBy, filter, page}, info);
         },
-        viewers: (parent, {first = 10, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
+        viewers: (parent, {first = 12, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
             if(!parent.id) {
                 return [];
             }
@@ -107,10 +107,12 @@ const resolvers = {
             let filter = {
                 game_id: parent.id,
             }
+
+            first = first <= 12 ? first : 12;
 
             return resolveCountFromDb(dataSources, 'games_current_viewer_count', {first, fromDate, toDate, filter}, info);
         },
-        players: (parent, {first = 10, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
+        players: (parent, {first = 12, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
             if(!parent.id) {
                 return [];
             }
@@ -118,17 +120,19 @@ const resolvers = {
             let filter = {
                 game_id: parent.id,
             }
+
+            first = first <= 12 ? first : 12;
 
             return resolveCountFromDb(dataSources, 'games_current_player_count', {first, fromDate, toDate, filter}, info);
         }
     },
     Stream: {
-        facts: (parent, {first = 10, orderBy = {}, page = 0}, {dataSources}, info) => {
+        facts: (parent, {first = 12, orderBy = {}, page = 0}, {dataSources}, info) => {
             let filter = {
                 stream_id: parent.id,
             }
 
-            first = first <= 10 ? first : 10;
+            first = first <= 12 ? first : 12;
             orderBy.created_at = orderBy.created_at ? orderBy.created_at : 'desc';
 
             return resolveFromDb(dataSources, 'Facts', {first, orderBy, filter, page}, info);
@@ -170,7 +174,7 @@ const server = new ApolloServer({
     resolvers,
     dataSources : () => ({db}),
     cacheControl: {
-        calculateHttpHeaders: false,
+        calculateHttpHeaders: true,
     },
     plugins: [responseCachePlugin()],
     context: ({req}) => {

@@ -10,7 +10,13 @@ class SqlDatabase extends SQLDataSource {
 
         if(filter) {
             for (let key in filter) {
-                query = query.where(key, 'like', filter[key]);
+                if(filter[key] === null) {
+                    query = query.whereNull(key);
+                } else if (filter[key].toLowerCase() === 'not null') {
+                    query = query.whereNotNull(key);
+                } else {
+                    query = query.where(key, 'like', filter[key]);
+                }
             }
         }
 
