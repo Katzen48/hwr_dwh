@@ -86,29 +86,32 @@ var Poller = /** @class */ (function () {
                             });
                         });
                         console.log(moment().format('HH:mm:ss') + ': Saving Streams');
-                        return [4 /*yield*/, connection.beginTransaction()];
+                        return [4 /*yield*/, connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED')];
                     case 4:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO User (id, display_name) VALUES (?, ?)", users)];
+                        return [4 /*yield*/, connection.beginTransaction()];
                     case 5:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT INTO Stream (id, user_id, started_at, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE ended_at=CURRENT_TIMESTAMP()", streams)];
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO User (id, display_name) VALUES (?, ?)", users)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Game (id) VALUES (?)", games)];
+                        return [4 /*yield*/, connection.batch("INSERT INTO Stream (id, user_id, started_at, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE ended_at=CURRENT_TIMESTAMP()", streams)];
                     case 7:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT INTO Stream_Stats (game_id, stream_id, viewer_count, language) VALUES (?, ?, ?, ?)", streamStats)];
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Game (id) VALUES (?)", games)];
                     case 8:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Stream_Tag (stream_id, tag_id) VALUES (?, ?)", streamTags)];
+                        return [4 /*yield*/, connection.batch("INSERT INTO Stream_Stats (game_id, stream_id, viewer_count, language) VALUES (?, ?, ?, ?)", streamStats)];
                     case 9:
                         _a.sent();
-                        return [4 /*yield*/, connection.commit()];
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Stream_Tag (stream_id, tag_id) VALUES (?, ?)", streamTags)];
                     case 10:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 11:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 12:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Saving Streams');
                         return [2 /*return*/];
@@ -140,17 +143,20 @@ var Poller = /** @class */ (function () {
                             }
                         });
                         console.log(moment().format('HH:mm:ss') + ': Started Saving Tags');
-                        return [4 /*yield*/, connection.beginTransaction()];
+                        return [4 /*yield*/, connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED')];
                     case 4:
                         _a.sent();
-                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Tag (id, name) VALUES (?, ?)", tags)];
+                        return [4 /*yield*/, connection.beginTransaction()];
                     case 5:
                         _a.sent();
-                        return [4 /*yield*/, connection.commit()];
+                        return [4 /*yield*/, connection.batch("INSERT IGNORE INTO Tag (id, name) VALUES (?, ?)", tags)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 7:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 8:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Saving Tags');
                         return [2 /*return*/];
@@ -167,11 +173,14 @@ var Poller = /** @class */ (function () {
                     case 1:
                         connection = _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Started Selecting Users');
-                        return [4 /*yield*/, connection.beginTransaction()];
+                        return [4 /*yield*/, connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED')];
                     case 2:
                         _a.sent();
-                        return [4 /*yield*/, connection.query("SELECT id FROM User WHERE type IS NULL")];
+                        return [4 /*yield*/, connection.beginTransaction()];
                     case 3:
+                        _a.sent();
+                        return [4 /*yield*/, connection.query("SELECT id FROM User WHERE type IS NULL")];
+                    case 4:
                         userIds = _a.sent();
                         currentUsers = [];
                         for (i = 0; i < userIds.length; i += 1) {
@@ -184,7 +193,7 @@ var Poller = /** @class */ (function () {
                         userPromises = [];
                         users = [];
                         return [4 /*yield*/, this.apiClient.getTokenInfo()];
-                    case 4:
+                    case 5:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Starting Updating Users');
                         for (j = 0; j < currentUsers.length; j++) {
@@ -192,7 +201,7 @@ var Poller = /** @class */ (function () {
                             userPromises.push(this.apiClient.helix.users.getUsersByIds(e).then(function (result) { return Array.prototype.push.apply(users, result); }));
                         }
                         return [4 /*yield*/, Promise.all(userPromises)];
-                    case 5:
+                    case 6:
                         _a.sent();
                         sqlTypeCases = [];
                         sqlBroadcasterTypeCases = [];
@@ -211,13 +220,13 @@ var Poller = /** @class */ (function () {
                         console.log(moment().format('HH:mm:ss') + ': Built SQL Cases');
                         sqlStatement = "UPDATE User SET type = CASE id " + sqlTypeCase + " ELSE type END, broadcaster_type = CASE id " + sqlBroadcasterTypeCase + " ELSE broadcaster_type END WHERE id IN (" + sqlIdClause + ")";
                         return [4 /*yield*/, connection.query(sqlStatement)];
-                    case 6:
-                        _a.sent();
-                        return [4 /*yield*/, connection.commit()];
                     case 7:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 8:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 9:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Updating Users');
                         return [2 /*return*/];
@@ -234,11 +243,14 @@ var Poller = /** @class */ (function () {
                     case 1:
                         connection = _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Started Selecting Games');
-                        return [4 /*yield*/, connection.beginTransaction()];
+                        return [4 /*yield*/, connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED')];
                     case 2:
                         _a.sent();
-                        return [4 /*yield*/, connection.query("SELECT id FROM Game")];
+                        return [4 /*yield*/, connection.beginTransaction()];
                     case 3:
+                        _a.sent();
+                        return [4 /*yield*/, connection.query("SELECT id FROM Game")];
+                    case 4:
                         gameIds = _a.sent();
                         currentGames = [];
                         for (i = 0; i < gameIds.length; i += 1) {
@@ -249,7 +261,7 @@ var Poller = /** @class */ (function () {
                         }
                         console.log(moment().format('HH:mm:ss') + ': Finished Selecting Games');
                         return [4 /*yield*/, this.authProvider.getAccessToken()];
-                    case 4:
+                    case 5:
                         appAccessToken = _a.sent();
                         igdb = new igdb_api_node_1.default(process.env.TWITCH_CLIENT_ID, appAccessToken.accessToken);
                         sqlIds = [];
@@ -261,9 +273,9 @@ var Poller = /** @class */ (function () {
                         gameGenres = [];
                         console.log(moment().format('HH:mm:ss') + ': Starting Updating Games');
                         i = 0;
-                        _a.label = 5;
-                    case 5:
-                        if (!(i < currentGames.length)) return [3 /*break*/, 8];
+                        _a.label = 6;
+                    case 6:
+                        if (!(i < currentGames.length)) return [3 /*break*/, 9];
                         gameIdBatch = currentGames[i];
                         gameIdFilter = gameIdBatch.join(',');
                         return [4 /*yield*/, igdb
@@ -271,7 +283,7 @@ var Poller = /** @class */ (function () {
                                 .limit(500)
                                 .where("category = 14 & uid = (" + gameIdFilter + ") & game.first_release_date != null & game.rating != null")
                                 .request('/external_games')];
-                    case 6:
+                    case 7:
                         response = _a.sent();
                         response.data.forEach(function (game) {
                             var steamGame = game.game.external_games.find(function (externalGame) { return externalGame.category == 1; });
@@ -295,11 +307,11 @@ var Poller = /** @class */ (function () {
                             sqlFirstReleaseDateCases.push("WHEN '" + id + "' THEN " + firstReleaseDate);
                             sqlRatingCases.push("WHEN '" + id + "' THEN " + rating);
                         });
-                        _a.label = 7;
-                    case 7:
-                        i++;
-                        return [3 /*break*/, 5];
+                        _a.label = 8;
                     case 8:
+                        i++;
+                        return [3 /*break*/, 6];
+                    case 9:
                         sqlNameCase = sqlNameCases.join(' ');
                         sqlSteamIdCase = sqlSteamIdCases.join(' ');
                         sqlFirstReleaseDateCase = sqlFirstReleaseDateCases.join(' ');
@@ -307,21 +319,21 @@ var Poller = /** @class */ (function () {
                         sqlIdClause = sqlIds.join(',');
                         console.log(moment().format('HH:mm:ss') + ': Built SQL Cases');
                         return [4 /*yield*/, connection.batch('INSERT IGNORE INTO Genre (id, name) VALUES (?, ?)', genres)];
-                    case 9:
+                    case 10:
                         _a.sent();
                         return [4 /*yield*/, connection.batch('INSERT IGNORE INTO Game_Genre (game_id, genre_id) VALUES (?, ?)', gameGenres)];
-                    case 10:
+                    case 11:
                         _a.sent();
                         sqlStatement = "UPDATE Game SET name = CASE id " + sqlNameCase + " ELSE name END, steam_id = CASE id " + sqlSteamIdCase + " ELSE steam_id END, first_release_date = CASE id " + sqlFirstReleaseDateCase + " ELSE first_release_date END, " +
                             ("rating = CASE id " + sqlRatingCase + " ELSE rating END WHERE id IN (" + sqlIdClause + ")");
                         return [4 /*yield*/, connection.query(sqlStatement)];
-                    case 11:
-                        _a.sent();
-                        return [4 /*yield*/, connection.commit()];
                     case 12:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 13:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 14:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished Updating Games');
                         return [2 /*return*/];
@@ -339,11 +351,14 @@ var Poller = /** @class */ (function () {
                         connection = _a.sent();
                         http = axiosRateLimit(axios_1.default.create(), { maxRequests: 60, perMilliseconds: 1000 });
                         console.log(moment().format('HH:mm:ss') + ': Started Selecting Games');
-                        return [4 /*yield*/, connection.beginTransaction()];
+                        return [4 /*yield*/, connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED')];
                     case 2:
                         _a.sent();
-                        return [4 /*yield*/, connection.query("SELECT id, steam_id FROM Game WHERE NOT steam_id IS NULL")];
+                        return [4 /*yield*/, connection.beginTransaction()];
                     case 3:
+                        _a.sent();
+                        return [4 /*yield*/, connection.query("SELECT id, steam_id FROM Game WHERE NOT steam_id IS NULL")];
+                    case 4:
                         games = _a.sent();
                         stats = [];
                         statsPromises = [];
@@ -389,16 +404,16 @@ var Poller = /** @class */ (function () {
                             _loop_1(i);
                         }
                         return [4 /*yield*/, Promise.all(statsPromises)];
-                    case 4:
-                        _a.sent();
-                        return [4 /*yield*/, connection.batch('INSERT INTO Current_Players (game_id, `count`) VALUES (?, ?)', stats)];
                     case 5:
                         _a.sent();
-                        return [4 /*yield*/, connection.commit()];
+                        return [4 /*yield*/, connection.batch('INSERT INTO Current_Players (game_id, `count`) VALUES (?, ?)', stats)];
                     case 6:
                         _a.sent();
-                        return [4 /*yield*/, connection.release()];
+                        return [4 /*yield*/, connection.commit()];
                     case 7:
+                        _a.sent();
+                        return [4 /*yield*/, connection.release()];
+                    case 8:
                         _a.sent();
                         console.log(moment().format('HH:mm:ss') + ': Finished inserting Current Players');
                         return [2 /*return*/];

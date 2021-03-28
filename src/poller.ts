@@ -53,6 +53,7 @@ export class Poller {
 
         console.log(moment().format('HH:mm:ss') + ': Saving Streams');
 
+        await connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await connection.beginTransaction();
         await connection.batch(`INSERT IGNORE INTO User (id, display_name) VALUES (?, ?)`, users);
         await connection.batch(`INSERT INTO Stream (id, user_id, started_at, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE ended_at=CURRENT_TIMESTAMP()`, streams);
@@ -83,6 +84,7 @@ export class Poller {
         });
 
         console.log(moment().format('HH:mm:ss') + ': Started Saving Tags');
+        await connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await connection.beginTransaction();
         await connection.batch(`INSERT IGNORE INTO Tag (id, name) VALUES (?, ?)`, tags);
 
@@ -97,6 +99,7 @@ export class Poller {
         let connection = await this.db.getConnection();
 
         console.log(moment().format('HH:mm:ss') + ': Started Selecting Users');
+        await connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await connection.beginTransaction();
         let userIds = await connection.query(`SELECT id FROM User WHERE type IS NULL`);
 
@@ -157,6 +160,7 @@ export class Poller {
         let connection = await this.db.getConnection();
 
         console.log(moment().format('HH:mm:ss') + ': Started Selecting Games');
+        await connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await connection.beginTransaction();
         let gameIds = await connection.query(`SELECT id FROM Game`);
 
@@ -249,6 +253,7 @@ export class Poller {
         let http = axiosRateLimit(axios.create(), { maxRequests: 60, perMilliseconds: 1000 });
 
         console.log(moment().format('HH:mm:ss') + ': Started Selecting Games');
+        await connection.query('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED');
         await connection.beginTransaction();
         let games = await connection.query(`SELECT id, steam_id FROM Game WHERE NOT steam_id IS NULL`);
 
