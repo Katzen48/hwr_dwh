@@ -1,7 +1,5 @@
 const { SQLDataSource } = require("datasource-sql");
 
-const TTL = 60;
-
 class SqlDatabase extends SQLDataSource {
     get(entity, fields = '*', limit = 1000, orderBy, filter, page = 0) {
         let query = this.knex
@@ -47,7 +45,7 @@ class SqlDatabase extends SQLDataSource {
         }
 
         query = query.where('created_at', '>=', fromDate)
-                     .where('created_at', '<=', toDate);
+                     .where('created_at', '<', toDate);
 
         query.limit(limit).offset(limit * page);
 

@@ -6,8 +6,8 @@ type Game {
     rating: Float
     genre_name: String
     facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts]
-    players(first: Int, fromDate: String!, toDate: String!): [PlayerCount] @cacheControl(maxAge: 1800)
-    viewers(first: Int, fromDate: String!, toDate: String!): [ViewerCount] @cacheControl(maxAge: 1800)
+    players(first: Int, fromDate: String!, toDate: String!): [PlayerCount] @cacheControl(maxAge: 1800, scope: PUBLIC)
+    viewers(first: Int, fromDate: String!, toDate: String!): [ViewerCount] @cacheControl(maxAge: 1800, scope: PUBLIC)
 }
 
 type Stream {
@@ -19,17 +19,17 @@ type Stream {
     user_name: String!
     user_type: String
     user_broadcaster_type: String
-    facts(first: Int, page: Int): [Facts] @cacheControl(maxAge: 1800)
+    facts(first: Int, page: Int): [Facts] @cacheControl(maxAge: 1800, scope: PUBLIC)
 }
 
-type PlayerCount @cacheControl(maxAge: 1800) {
+type PlayerCount @cacheControl(maxAge: 1800, scope: PUBLIC) {
     players: Int!
     game_id: ID!
     created_at: DateTime
     game: [Game]
 }
 
-type ViewerCount @cacheControl(maxAge: 1800) {
+type ViewerCount @cacheControl(maxAge: 1800, scope: PUBLIC) {
     viewers: Int!
     game_id: ID!
     created_at: DateTime
@@ -51,9 +51,9 @@ type Query {
     game(id: ID!): [Game]
     streams(first: Int, page: Int, orderBy: StreamOrderByInput, filter: StreamFilterInput): [Stream]
     stream(id: ID!, filter: StreamFilterInput!): [Stream]
-    facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts] @cacheControl(maxAge: 1800)
-    players(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: PlayerCountOrderByInput): [PlayerCount] @cacheControl(maxAge: 1800)
-    viewers(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: ViewerCountOrderByInput): [ViewerCount] @cacheControl(maxAge: 1800)
+    facts(first: Int, page: Int, orderBy: FactsOrderByInput): [Facts] @cacheControl(maxAge: 1800, scope: PUBLIC)
+    players(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: PlayerCountOrderByInput): [PlayerCount] @cacheControl(maxAge: 1800, scope: PUBLIC)
+    viewers(first: Int, page: Int, fromDate: DateTime!, toDate: DateTime!, orderBy: ViewerCountOrderByInput): [ViewerCount] @cacheControl(maxAge: 1800, scope: PUBLIC)
 }
 
 input GameOrderByInput {

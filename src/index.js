@@ -14,7 +14,12 @@ const knexConfig = {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_DATABASE,
-        timezone: '+00:00'
+        timezone: '+00:00',
+        pool: {
+            min: 0,
+            max: 1
+        },
+        ping: function (conn, cb) { conn.query('SELECT VERSION()', cb) },
     },
 }
 
@@ -31,7 +36,7 @@ function resolveFromDb(dataSources, entity, {first, orderBy, filter, page = 0}, 
     return dataSources.db.get(entity, fields, limit, orderBy, filter, page);
 }
 
-function resolveCountFromDb(dataSources, view, {first, fields, orderBy, fromDate, toDate, filter, page = 0}, info) {
+function resolveCountFromDb(dataSources, view, {first, fields, orderBy, fromDate, toDate, filter, page = 0}) {
     let limit = (first && first <= 1000 ? first : 1000);
 
     page = page >= 0 ? page : 0;
@@ -65,6 +70,8 @@ const resolvers = {
     },
     Facts: {
         game: (parent, {}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 id: parent.game_id,
             }
@@ -77,6 +84,8 @@ const resolvers = {
         },
 
         stream: (parent, {}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 id: parent.stream_id,
             }
@@ -90,6 +99,8 @@ const resolvers = {
     },
     Game: {
         facts: (parent, {first = 12, orderBy = {}, page = 0}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 game_id: parent.id,
             }
@@ -100,6 +111,8 @@ const resolvers = {
             return resolveFromDb(dataSources, 'Facts', {first, orderBy, filter, page}, info);
         },
         viewers: (parent, {first = 12, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             if(!parent.id) {
                 return [];
             }
@@ -113,6 +126,8 @@ const resolvers = {
             return resolveCountFromDb(dataSources, 'games_current_viewer_count', {first, fromDate, toDate, filter}, info);
         },
         players: (parent, {first = 12, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             if(!parent.id) {
                 return [];
             }
@@ -128,6 +143,8 @@ const resolvers = {
     },
     Stream: {
         facts: (parent, {first = 12, orderBy = {}, page = 0}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 stream_id: parent.id,
             }
@@ -140,6 +157,8 @@ const resolvers = {
     },
     PlayerCount: {
         game: (parent, {}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 id: parent.game_id,
             }
@@ -153,6 +172,8 @@ const resolvers = {
     },
     ViewerCount: {
         game: (parent, {}, {dataSources}, info) => {
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
             let filter = {
                 id: parent.game_id,
             }
@@ -174,7 +195,7 @@ const server = new ApolloServer({
     resolvers,
     dataSources : () => ({db}),
     cacheControl: {
-        calculateHttpHeaders: true,
+        defaultMaxAge: 1800
     },
     plugins: [responseCachePlugin()],
     context: ({req}) => {
