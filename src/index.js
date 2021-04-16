@@ -30,21 +30,24 @@ const typeDefs = gql(fs.readFileSync(__dirname + '/schema.graphql', 'utf8'));
 function resolveFromDb(dataSources, entity, {first, orderBy, filter, page = 0}, info) {
     let fields = Object.keys(graphqlFields(info)).filter(value => value !== 'game' && value !== 'stream' && value !== 'facts' && value !== 'players' && value !== 'viewers');
     let limit = (first && first <= 1000 ? first : 1000);
+    info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
 
     page = page >= 0 ? page : 0;
 
     return dataSources.db.get(entity, fields, limit, orderBy, filter, page);
 }
 
-function resolveCountFromDb(dataSources, view, {first, fields, orderBy, fromDate, toDate, filter, page = 0}) {
+function resolveCountFromDb(dataSources, {sqlFieldName, gqlFieldName}, {first, orderBy, fromDate, toDate, filter, page = 0}) {
     let limit = (first && first <= 1000 ? first : 1000);
 
     page = page >= 0 ? page : 0;
 
-    return dataSources.db.getFromFactsView(view, fields, limit, orderBy, fromDate, toDate, filter, page);
+    return dataSources.db.getFromFacts({sqlFieldName, gqlFieldName}, limit, orderBy, fromDate, toDate, filter, page);
 }
 
 function resolveFirstFromDb(dataSources, entity, {id}, info) {
+    info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
+
     let fields = Object.keys(graphqlFields(info)).filter(value => value !== 'game' && value !== 'stream' && value !== 'facts' && value !== 'players' && value !== 'viewers');
 
     return dataSources.db.getFirst(entity, fields, {id: id});
@@ -58,14 +61,22 @@ const resolvers = {
         stream: (root, {id}, {dataSources}, info) => (resolveFirstFromDb(dataSources, 'Stream', {id}, info)),
         facts: (root, {first, orderBy, page = 0}, {dataSources}, info) => (resolveFromDb(dataSources, 'Facts', {first, orderBy, page}, info)),
         players: (parent, {first, orderBy, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
-            let filter = null;
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
 
-            return resolveCountFromDb(dataSources, 'games_current_player_count', {first, orderBy, fromDate, toDate, filter}, info);
+            let filter = {
+                stream_id: null,
+            };
+
+            return resolveCountFromDb(dataSources, {sqlFieldName: 'players_count', gqlFieldName: 'players'}, {first, orderBy, fromDate, toDate, filter});
         },
         viewers: (parent, {first, orderBy, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
-            let filter = null;
+            info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
 
-            return resolveCountFromDb(dataSources, 'games_current_viewer_count', {first, orderBy, fromDate, toDate, filter}, info);
+            let filter = {
+                stream_id: 'not null',
+            };
+
+            return resolveCountFromDb(dataSources, {sqlFieldName: 'viewer_count', gqlFieldName: 'viewers'}, {first, orderBy, fromDate, toDate, filter});
         },
     },
     Facts: {
@@ -119,11 +130,12 @@ const resolvers = {
 
             let filter = {
                 game_id: parent.id,
+                stream_id: 'not null',
             }
 
             first = first <= 12 ? first : 12;
 
-            return resolveCountFromDb(dataSources, 'games_current_viewer_count', {first, fromDate, toDate, filter}, info);
+            return resolveCountFromDb(dataSources, {sqlFieldName: 'viewer_count', gqlFieldName: 'viewers'}, {first, fromDate, toDate, filter});
         },
         players: (parent, {first = 12, fromDate = "CUR_DATE()", toDate = "CUR_DATE()"}, {dataSources}, info) => {
             info.cacheControl.setCacheHint({maxAge: 1800, scope: 'PUBLIC'});
@@ -134,11 +146,12 @@ const resolvers = {
 
             let filter = {
                 game_id: parent.id,
+                stream_id: null,
             }
 
             first = first <= 12 ? first : 12;
 
-            return resolveCountFromDb(dataSources, 'games_current_player_count', {first, fromDate, toDate, filter}, info);
+            return resolveCountFromDb(dataSources, {sqlFieldName: 'players_count', gqlFieldName: 'players'}, {first, fromDate, toDate, filter});
         }
     },
     Stream: {

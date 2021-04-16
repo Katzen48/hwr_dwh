@@ -27,14 +27,21 @@ class SqlDatabase extends SQLDataSource {
         return query.limit(limit).offset(limit * page);
     }
 
-    getFromFactsView(view, fields = '*', limit = 1, orderBy, fromDate, toDate, filter, page = 0) {
+    getFromFacts({sqlFieldName, gqlFieldName}, limit = 1, orderBy, fromDate, toDate, filter, page = 0) {
         let query = this.knex
-            .distinct(fields)
-            .from(view)
+            .select(this.knex.raw(`SQL_CACHE SUM(${sqlFieldName}) as ${gqlFieldName}, game_id, created_at`))
+            .groupBy(['game_id', 'created_at'])
+            .from('Facts');
 
         if(filter) {
             for (let key in filter) {
-                query = query.where(key, 'like', filter[key]);
+                if(filter[key] === null) {
+                    query = query.whereNull(key);
+                } else if (filter[key].toLowerCase() === 'not null') {
+                    query = query.whereNotNull(key);
+                } else {
+                    query = query.where(key, 'like', filter[key]);
+                }
             }
         }
 

@@ -31,7 +31,7 @@ type PlayerCount @cacheControl(maxAge: 1800, scope: PUBLIC) {
 
 type ViewerCount @cacheControl(maxAge: 1800, scope: PUBLIC) {
     viewers: Int!
-    game_id: ID!
+    game_id: ID
     created_at: DateTime
     game: [Game]
 }
